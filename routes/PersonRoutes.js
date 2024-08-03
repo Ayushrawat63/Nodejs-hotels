@@ -19,12 +19,11 @@ router.post('/', async (req,res)=>{
    const userData= await user.save()
    console.log("data added to database")
    res.status(200).json(userData)
-
    }
-   catch(error){
+   catch(error)
+   {
        console.log("Internal server error",error)
        res.status(500).json({status:"internal server error"})
-
    }
 }
 )
