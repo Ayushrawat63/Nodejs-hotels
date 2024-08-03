@@ -2,7 +2,9 @@ const express= require('express')
 const router=express.Router()
 const AllUser=require('../Model/UserSchema')
 
-router.get('/', async(req,res)=>{
+const {VerifyTokenMiddlerware,GenerateToken}=require('../JWTauth')
+
+router.get('/',VerifyTokenMiddlerware, async(req,res)=>{
     try{
   const userData=await AllUser.find()
     res.status(200).json(userData)
@@ -12,13 +14,32 @@ router.get('/', async(req,res)=>{
     }
 })
 
-router.post('/', async (req,res)=>{
+router.get('/profile',VerifyTokenMiddlerware,async (req,res)=>{
+    try{
+        const userPlayload=req.payload;
+        console.log(userPlayload);
+        const user = await AllUser.findById({_id:userPlayload.id})
+           res.status(201).json(user)
+    }
+    catch(error)
+   {
+       console.log("Internal server error",error)
+       res.status(500).json({status:"internal server error"})
+   }
+})
+
+router.post('/signin', async (req,res)=>{
    try{
    const val=req.body;
    const user= new AllUser(val)
    const userData= await user.save()
    console.log("data added to database")
-   res.status(200).json(userData)
+   const payload={
+    username:userData.username,
+    id:userData._id
+   }
+   const token=GenerateToken(payload)
+   res.status(200).json({content:userData,token:token})
    }
    catch(error)
    {
@@ -27,6 +48,36 @@ router.post('/', async (req,res)=>{
    }
 }
 )
+
+//user Login in post request
+
+router.post('/login',async(req,res)=>{
+    try{
+      const {username,password}=req.body
+      const user=await AllUser.findOne({username:username})
+      if(!user) return res.status(401).json({error:"Username is not vaild"})
+        console.log(user);
+       await user.comparePassword(password,function(err, isMatch) {
+        if (err) throw err;
+        console.log(password, isMatch);
+        if(!isMatch)  return  res.status(401).json({error:"Password is not vaild"})
+            // generate token
+          const payload={
+            id:user.id,
+            username:user.username
+          }
+          const token=GenerateToken(payload)
+            return  res.status(201).json({status:"Successfu; login ",token})
+
+    });
+      
+    }
+    catch(err){
+        console.log("Internal server error",err)
+       res.status(500).json({status:"internal server error"})
+
+    }
+})
 
 router.get('/:worktype',async(req,res)=>{
    try{
